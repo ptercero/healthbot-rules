@@ -1,0 +1,79 @@
+ healthbot {
+    topic chassis.temperatures {
+        rule check-rp-temperature-cisco {
+            keys [ routing-processor temp-sensor ];
+            sensor chassis {
+                open-config {
+                    sensor-name /environment/oper/;
+                    frequency 60s;
+                }
+            }
+            field routing-processor {
+                sensor chassis {
+                    where "/environment/oper/temperatures/location/@location =~ /^[0-9]*.RP[0-2]*$/";
+                    path "/environment/oper/temperatures/location/@location";
+                }
+                type string;
+                description "node-name ";
+            }
+            field rp-temperature {
+                sensor chassis {
+                    path /environment/oper/temperatures/location/sensor_attributes/temperature-value/value;
+                }
+                type integer;
+                description application-memory;
+            }
+            field temp-sensor {
+                sensor chassis {
+                    path "/environment/oper/temperatures/location/sensor_attributes/@sensor";
+                }
+                type string;
+            }
+            field temperature-high-threshold {
+                sensor chassis {
+                    path /environment/oper/temperatures/location/sensor_attributes/major-hi;
+                }
+                type integer;
+            }
+            field temperature-low-threshold {
+                sensor chassis {
+                    path /environment/oper/temperatures/location/sensor_attributes/minor-hi;
+                }
+                type integer;
+            }
+            trigger check-rp-temperature {
+                frequency 60s;
+                term high_temperature {
+                    when {
+                        greater-than-or-equal-to "$rp-temperature" "$temperature-high-threshold";
+                    }
+                    then {
+                        status {
+                            color red;
+                            message "$routing-processor at high $temp-sensor temperature: $rp-temperature degrees C";
+                        }
+                    }
+                }
+                term medium_temperature {
+                    when {
+                        greater-than-or-equal-to "$rp-temperature" "$temperature-low-threshold";
+                    }
+                    then {
+                        status {
+                            color yellow;
+                            message "$routing-processor at moderate $temp-sensor temperature: $rp-temperature degrees C";
+                        }
+                    }
+                }
+                term temperature_ok {
+                    then {
+                        status {
+                            color green;
+                            message "$routing-processor temperature $temp-sensor is $rp-temperature degrees C";
+                        }
+                    }
+                }
+            }
+        }
+    }
+ }

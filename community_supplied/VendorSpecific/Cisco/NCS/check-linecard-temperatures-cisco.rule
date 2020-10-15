@@ -1,0 +1,113 @@
+ healthbot {
+    topic chassis.temperatures {
+        rule check-linecard-temperature-cisco {
+            keys [ linecard sensor ];
+            sensor chassis {
+                open-config {
+                    sensor-name /environment/oper/;
+                    frequency 60s;
+                }
+            }
+            field linecard {
+                sensor chassis {
+                    where "/environment/oper/temperatures/location/@location =~ /^[0-2]*.[0-7]*$/";
+                    path "/environment/oper/temperatures/location/@location";
+                }
+                type string;
+                description node-name;
+            }
+            field linecard-temperature {
+                sensor chassis {
+                    path /environment/oper/temperatures/location/sensor_attributes/temperature-value/value;
+                }
+                type integer;
+                description "linecard temperature";
+            }
+            field major-hi {
+                sensor chassis {
+                    path /environment/oper/temperatures/location/sensor_attributes/major-hi;
+                }
+                type integer;
+            }
+            field major-low {
+                sensor chassis {
+                    path /environment/oper/temperatures/location/sensor_attributes/major-lo;
+                }
+                type integer;
+            }
+            field minor-hi {
+                sensor chassis {
+                    path /environment/oper/temperatures/location/sensor_attributes/minor-hi;
+                }
+                type integer;
+            }
+            field minor-low {
+                sensor chassis {
+                    path /environment/oper/temperatures/location/sensor_attributes/minor-lo;
+                }
+                type integer;
+            }
+            field sensor {
+                sensor chassis {
+                    path "/environment/oper/temperatures/location/sensor_attributes/@sensor";
+                }
+                type string;
+            }
+            trigger check-linecard-temperature {
+                frequency 60s;
+                term major-high {
+                    when {
+                        greater-than "$linecard-temperature" "$major-hi";
+                    }
+                    then {
+                        status {
+                            color red;
+                            message "$linecard at high temperature $sensor: $linecard-temperature C";
+                        }
+                    }
+                }
+                term minor-high {
+                    when {
+                        greater-than "$linecard-temperature" "$minor-hi";
+                    }
+                    then {
+                        status {
+                            color yellow;
+                            message "$linecard at moderate high temperature $sensor: $linecard-temperature C";
+                        }
+                    }
+                }
+                term major-low {
+                    when {
+                        less-than "$linecard-temperature" "$major-low";
+                    }
+                    then {
+                        status {
+                            color red;
+                            message "$linecard at low temperature $sensor: $linecard-temperature C";
+                        }
+                    }
+                }
+                term minor-low {
+                    when {
+                        less-than "$linecard-temperature" "$minor-low";
+                    }
+                    then {
+                        status {
+                            color yellow;
+                            message "$linecard at moderate low temperature $sensor: $linecard-temperature C";
+                        }
+                    }
+                }
+                term normal-temp {
+                    then {
+                        status {
+                            color green;
+                            message "$linecard temperature $sensor is: $linecard-temperature C";
+                        }
+                    }
+                }
+            }
+        }
+    }
+ }

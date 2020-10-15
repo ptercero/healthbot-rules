@@ -1,0 +1,85 @@
+healthbot {
+    topic linecard.fpc {
+        rule check-linecard-cpu-cisco {
+            keys linecard;
+            sensor cpu {
+                open-config {
+                    sensor-name /system-monitoring/cpu-utilization/;
+                    frequency 60s;
+                }
+            }
+            field cpu-high-threshold {
+                constant {
+                    value "{{high-threshold}}";
+                }
+                type integer;
+            }
+            field cpu-low-threshold {
+                constant {
+                    value "{{low-threshold}}";
+                }
+                type integer;
+            }
+            field linecard {
+                sensor cpu {
+                    where "/system-monitoring/cpu-utilization/@node-name =~ /^[0-2]\/[0-7]\/CPU[0-2]$/";
+                    path "/system-monitoring/cpu-utilization/@node-name";
+                }
+                type string;
+            }
+            field total-cpu-5-min {
+                sensor cpu {
+                    path /system-monitoring/cpu-utilization/total-cpu-five-minute;
+                }
+                type float;
+                description total-cpu-5-min;
+            }
+            trigger cpu-5-min {
+                frequency 60s;
+                term cpu_high_threshold {
+                    when {
+                        greater-than "$total-cpu-5-min" "$cpu-high-threshold" {
+                            time-range 5m;
+                        }
+                    }
+                    then {
+                        status {
+                            color red;
+                            message "$linecard high cpu usage: $total-cpu-5-min%";
+                        }
+                    }
+                }
+                term cpu_low_threshold {
+                    when {
+                        greater-than "$total-cpu-5-min" "$cpu-low-threshold" {
+                            time-range 5m;
+                        }
+                    }
+                    then {
+                        status {
+                            color yellow;
+                            message "$linecard moderate cpu usage: $total-cpu-5-min%";
+                        }
+                    }
+                }
+                term cpu_normal {
+                    then {
+                        status {
+                            color green;
+                            message "$linecard cpu usage is $total-cpu-5-min%";
+                        }
+                    }
+                }
+            }
+            variable high-threshold {
+                value 80;
+                type int;
+            }
+            variable low-threshold {
+                value 60;
+                type int;
+            }
+        }
+    }
+}
+

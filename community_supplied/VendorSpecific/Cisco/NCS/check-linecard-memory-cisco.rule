@@ -1,0 +1,108 @@
+ healthbot {
+    topic linecard.fpc {
+        rule check-linecard-memory-cisco {
+            keys linecard;
+            function percent {
+                path maths.py;
+                method used_percentage;
+                argument total {
+                    mandatory;
+                }
+                argument used {
+                    mandatory;
+                }
+            }
+            sensor memory {
+                open-config {
+                    sensor-name /memory-summary/nodes/node/summary/;
+                    frequency 60s;
+                }
+            }
+            field free-memory-perc {
+                formula {
+                    user-defined-function {
+                        function-name percent;
+                        argument used "$free-physical-memory";
+                        argument total "$system-ram-memory";
+                    }
+                }
+                type integer;
+            }
+            field free-physical-memory {
+                sensor memory {
+                    path /memory-summary/nodes/node/summary/free-physical-memory;
+                }
+                type integer;
+                description application-memory;
+            }
+            field linecard {
+                sensor memory {
+                    where "/memory-summary/nodes/node/@node-name =~ /^[0-2]\/[0-7]\/CPU[0-2]$/";
+                    path "/memory-summary/nodes/node/@node-name";
+                }
+                type string;
+                description "node-name ";
+            }
+            field memory-high-threshold {
+                constant {
+                    value "{{high-threshold}}";
+                }
+                type integer;
+            }
+            field memory-low-threshold {
+                constant {
+                    value "{{low-threshold}}";
+                }
+                type integer;
+            }
+            field system-ram-memory {
+                sensor memory {
+                    path /memory-summary/nodes/node/summary/system-ram-memory;
+                }
+                type integer;
+                description system-ram-memory;
+            }
+            trigger memory {
+                frequency 60s;
+                term memory_high_threshold {
+                    when {
+                        less-than "$free-memory-perc" "$memory-high-threshold";
+                    }
+                    then {
+                        status {
+                            color red;
+                            message "$linecard low memory available $free-memory-perc%";
+                        }
+                    }
+                }
+                term memory_low_threshold {
+                    when {
+                        less-than "$free-memory-perc" "$memory-low-threshold";
+                    }
+                    then {
+                        status {
+                            color yellow;
+                            message "$linecard medium memory available: $free-memory-perc%";
+                        }
+                    }
+                }
+                term memory_ok {
+                    then {
+                        status {
+                            color green;
+                            message "$linecard available memory $free-memory-perc%";
+                        }
+                    }
+                }
+            }
+            variable high-threshold {
+                value 20;
+                type int;
+            }
+            variable low-threshold {
+                value 50;
+                type int;
+            }
+        }
+    }
+ }

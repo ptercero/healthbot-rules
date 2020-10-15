@@ -1,0 +1,139 @@
+healthbot {
+    topic chassis.fan {
+        rule check-chassis-fan-cisco {
+            keys fan-location;
+            function speed_percentages {
+                path maths.py;
+                method percentage_string_vector;
+                argument total {
+                    mandatory;
+                }
+                argument vector {
+                    mandatory;
+                }
+            }
+            function thresholds_reached {
+                path maths.py;
+                method threshold_in_vector;
+                argument threshold {
+                    mandatory;
+                }
+                argument vector {
+                    mandatory;
+                }
+            }
+            sensor chassis {
+                open-config {
+                    sensor-name /environment/oper/;
+                    frequency 60s;
+                }
+            }
+            field fan-location {
+                sensor chassis {
+                    where "/environment/oper/fan/location/@location =~ /^[0-9]*.FT[0-9]*$/";
+                    path "/environment/oper/fan/location/@location";
+                }
+                type string;
+            }
+            field fans-speed {
+                sensor chassis {
+                    path /environment/oper/fan/location/fan_attributes/fans-speed/value;
+                }
+                type string;
+            }
+            field high-speed-threshold {
+                constant {
+                    value "{{high-threshold}}";
+                }
+                type integer;
+            }
+            field high-threshold-reached {
+                formula {
+                    user-defined-function {
+                        function-name thresholds_reached;
+                        argument threshold "$high-speed-threshold";
+                        argument vector "$speed-percentages";
+                    }
+                }
+                type integer;
+            }
+            field low-speed-threshold {
+                constant {
+                    value "{{low-threshold}}";
+                }
+                type integer;
+            }
+            field low-threshold-reached {
+                formula {
+                    user-defined-function {
+                        function-name thresholds_reached;
+                        argument threshold "$low-speed-threshold";
+                        argument vector "$speed-percentages";
+                    }
+                }
+                type integer;
+            }
+            field max-fan-speed {
+                constant {
+                    value "{{max-fan-speed}}";
+                }
+                type integer;
+            }
+            field speed-percentages {
+                formula {
+                    user-defined-function {
+                        function-name speed_percentages;
+                        argument vector "$fans-speed";
+                        argument total "$max-fan-speed";
+                    }
+                }
+                type string;
+            }
+            trigger check-fan-speed {
+                frequency 60s;
+                term is_high_threshold_reached {
+                    when {
+                        equal-to "$high-threshold-reached" 1;
+                    }
+                    then {
+                        status {
+                            color red;
+                            message "High speed fans in $fan-location";
+                        }
+                    }
+                }
+                term is_low_threshold_reached {
+                    when {
+                        equal-to "$low-threshold-reached" 1;
+                    }
+                    then {
+                        status {
+                            color yellow;
+                            message "Medium speed fans in $fan-location";
+                        }
+                    }
+                }
+                term normal_speed_fans {
+                    then {
+                        status {
+                            color green;
+                            message "Fans in $fan-location are OK";
+                        }
+                    }
+                }
+            }
+            variable high-threshold {
+                value 85;
+                type int;
+            }
+            variable low-threshold {
+                value 75;
+                type int;
+            }
+            variable max-fan-speed {
+                value 6500;
+                type int;
+            }
+        }
+    }
+}

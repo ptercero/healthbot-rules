@@ -1,0 +1,114 @@
+healthbot {
+    topic chassis.power {
+        rule check-system-power-usage-cisco {
+            function used-percentage {
+                path maths.py;
+                method used_percentage;
+                argument total {
+                    mandatory;
+                }
+                argument used {
+                    mandatory;
+                }
+            }
+            sensor chassis {
+                open-config {
+                    sensor-name /environment/oper/;
+                    frequency 60s;
+                }
+            }
+            field allocated-available-percentage {
+                formula {
+                    user-defined-function {
+                        function-name used-percentage;
+                        argument used "$power-allocated";
+                        argument total "$power-total-available";
+                    }
+                }
+                type integer;
+            }
+            field power-allocated {
+                sensor chassis {
+                    path /environment/oper/power/location/pem_attributes/power-resrv-and-alloc;
+                }
+                type integer;
+            }
+            field power-consumed {
+                sensor chassis {
+                    path /environment/oper/power/location/pem_attributes/system-power-used;
+                }
+                type integer;
+            }
+            field power-threshold {
+                constant {
+                    value "{{max-threshold}}";
+                }
+                type integer;
+            }
+            field power-total-available {
+                sensor chassis {
+                    path /environment/oper/power/location/pem_attributes/usable-power-capacity;
+                }
+                type integer;
+            }
+            field used-allocated-percentage {
+                formula {
+                    user-defined-function {
+                        function-name used-percentage;
+                        argument total "$power-allocated";
+                        argument used "$power-consumed";
+                    }
+                }
+                type integer;
+            }
+            trigger check-allocated-power {
+                frequency 60s;
+                term allocaed_power_exceeds_threshold {
+                    when {
+                        greater-than-or-equal-to "$allocated-available-percentage" "$power-threshold";
+                    }
+                    then {
+                        status {
+                            color yellow;
+                            message "$allocated-available-percentage% of total supplied power ($power-total-available W) is already allocated";
+                        }
+                    }
+                }
+                term allocated_power_ok {
+                    then {
+                        status {
+                            color green;
+                            message "Current total allocated power is $allocated-available-percentage%";
+                        }
+                    }
+                }
+            }
+            trigger check-used-power {
+                frequency 60s;
+                term used_power_exceeds_threshold {
+                    when {
+                        greater-than-or-equal-to "$used-allocated-percentage" "$power-threshold";
+                    }
+                    then {
+                        status {
+                            color red;
+                            message "System used power ($used-allocated-percentage%) exceeds threshold: ($power-threshold)";
+                        }
+                    }
+                }
+                term used_power_ok {
+                    then {
+                        status {
+                            color green;
+                            message "Current total power used is $used-allocated-percentage%";
+                        }
+                    }
+                }
+            }
+            variable max-threshold {
+                value 80;
+                type int;
+            }
+        }
+    }
+}

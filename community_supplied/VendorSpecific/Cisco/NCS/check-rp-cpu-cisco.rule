@@ -1,0 +1,85 @@
+healthbot {
+    topic system.statistics {
+        rule check-rp-cpu-cisco {
+            keys routing-processor;
+            sensor cpu {
+                open-config {
+                    sensor-name /system-monitoring/cpu-utilization/;
+                    frequency 60s;
+                }
+            }
+            field cpu-high-threshold {
+                constant {
+                    value "{{high-threshold}}";
+                }
+                type integer;
+            }
+            field cpu-low-threshold {
+                constant {
+                    value "{{low-threshold}}";
+                }
+                type integer;
+            }
+            field routing-processor {
+                sensor cpu {
+                    where "/system-monitoring/cpu-utilization/@node-name =~ /^[0-9]*.RP[0-2]*.CPU.*$/";
+                    path "/system-monitoring/cpu-utilization/@node-name";
+                }
+                type string;
+            }
+            field total-cpu-5-min {
+                sensor cpu {
+                    path /system-monitoring/cpu-utilization/total-cpu-five-minute;
+                }
+                type float;
+                description total-cpu-5-min;
+            }
+            trigger cpu-5-min {
+                frequency 60s;
+                term cpu_high_threshold {
+                    when {
+                        greater-than "$total-cpu-5-min" "$cpu-high-threshold" {
+                            time-range 3m;
+                        }
+                    }
+                    then {
+                        status {
+                            color red;
+                            message "$routing-processor high cpu usage: $total-cpu-5-min%";
+                        }
+                    }
+                }
+                term cpu_low_threshold {
+                    when {
+                        greater-than "$total-cpu-5-min" "$cpu-low-threshold" {
+                            time-range 3m;
+                        }
+                    }
+                    then {
+                        status {
+                            color yellow;
+                            message "$routing-processor moderate cpu usage: $total-cpu-5-min%";
+                        }
+                    }
+                }
+                term cpu_normal {
+                    then {
+                        status {
+                            color green;
+                            message "$routing-processor cpu usage is $total-cpu-5-min%";
+                        }
+                    }
+                }
+            }
+            variable high-threshold {
+                value 80;
+                type int;
+            }
+            variable low-threshold {
+                value 60;
+                type int;
+            }
+        }
+    }
+}
+

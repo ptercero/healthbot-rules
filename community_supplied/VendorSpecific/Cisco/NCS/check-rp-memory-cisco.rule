@@ -1,0 +1,108 @@
+healthbot {
+    topic system.statistics {
+        rule check-rp-memory-cisco {
+            keys routing-processor;
+            function percent {
+                path maths.py;
+                method used_percentage;
+                argument total {
+                    mandatory;
+                }
+                argument used {
+                    mandatory;
+                }
+            }
+            sensor memory {
+                open-config {
+                    sensor-name /memory-summary/nodes/node/summary/;
+                    frequency 60s;
+                }
+            }
+            field free-memory-perc {
+                formula {
+                    user-defined-function {
+                        function-name percent;
+                        argument used "$free-physical-memory";
+                        argument total "$system-ram-memory";
+                    }
+                }
+                type integer;
+            }
+            field free-physical-memory {
+                sensor memory {
+                    path /memory-summary/nodes/node/summary/free-physical-memory;
+                }
+                type integer;
+                description application-memory;
+            }
+            field memory-high-threshold {
+                constant {
+                    value "{{high-threshold}}";
+                }
+                type integer;
+            }
+            field memory-low-threshold {
+                constant {
+                    value "{{low-threshold}}";
+                }
+                type integer;
+            }
+            field routing-processor {
+                sensor memory {
+                    where "/memory-summary/nodes/node/@node-name =~ /^[0-9]*.RP[0-2]*.CPU.*$/";
+                    path "/memory-summary/nodes/node/@node-name";
+                }
+                type string;
+                description "node-name ";
+            }
+            field system-ram-memory {
+                sensor memory {
+                    path /memory-summary/nodes/node/summary/system-ram-memory;
+                }
+                type integer;
+                description system-ram-memory;
+            }
+            trigger memory {
+                frequency 60s;
+                term memory_high_threshold {
+                    when {
+                        less-than "$free-memory-perc" "$memory-high-threshold";
+                    }
+                    then {
+                        status {
+                            color red;
+                            message "$routing-processor low memory available $free-memory-perc%";
+                        }
+                    }
+                }
+                term memory_low_threshold {
+                    when {
+                        less-than "$free-memory-perc" "$memory-low-threshold";
+                    }
+                    then {
+                        status {
+                            color yellow;
+                            message "$routing-processor medium memory available: $free-memory-perc%";
+                        }
+                    }
+                }
+                term memory_ok {
+                    then {
+                        status {
+                            color green;
+                            message "$routing-processor available memory $free-memory-perc%";
+                        }
+                    }
+                }
+            }
+            variable high-threshold {
+                value 20;
+                type int;
+            }
+            variable low-threshold {
+                value 50;
+                type int;
+            }
+        }
+    }
+}

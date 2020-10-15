@@ -1,0 +1,117 @@
+healthbot {
+    topic system.statistics {
+        rule check-storage-capacity-cisco {
+            keys filesystem;
+            function percent {
+                path maths.py;
+                method used_percentage;
+                argument total {
+                    mandatory;
+                }
+                argument used {
+                    mandatory;
+                }
+            }
+            sensor storage {
+                open-config {
+                    sensor-name /file-system/node/;
+                    frequency 120s;
+                }
+            }
+            field filesystem {
+                sensor storage {
+                    where "/file-system/node/file-system/prefixes =~ /^{{filesystem-name}}$/";
+                    path /file-system/node/file-system/prefixes;
+                }
+                type string;
+                description filesystem;
+            }
+            field free-percent {
+                formula {
+                    user-defined-function {
+                        function-name percent;
+                        argument total "$storage-size";
+                        argument used "$free-storage";
+                    }
+                }
+                type float;
+            }
+            field free-storage {
+                sensor storage {
+                    path /file-system/node/file-system/free;
+                }
+                type integer;
+                description free-storage;
+            }
+            field max-threshold {
+                constant {
+                    value 20;
+                }
+                type integer;
+                description max-threshold;
+            }
+            field min-threshold {
+                constant {
+                    value 10;
+                }
+                type integer;
+                description min-threshold;
+            }
+            field storage-size {
+                sensor storage {
+                    path /file-system/node/file-system/size;
+                }
+                type integer;
+                description storage-size;
+            }
+            field type {
+                sensor storage {
+                    path /file-system/node/file-system/type;
+                }
+                type string;
+            }
+            trigger storage {
+                frequency 120s;
+                term High {
+                    when {
+                        less-than-or-equal-to "$free-percent" "$min-threshold";
+                    }
+                    then {
+                        status {
+                            color red;
+                            message "$filesystem only $free-percent% of free storage";
+                        }
+                    }
+                }
+                term medium {
+                    when {
+                        less-than-or-equal-to "$free-percent" "$max-threshold";
+                    }
+                    then {
+                        status {
+                            color yellow;
+                            message "$filesystem $free-percent% of free storage";
+                        }
+                    }
+                }
+                term normal {
+                    then {
+                        status {
+                            color green;
+                            message "$filesystem $free-percent% of free storage";
+                        }
+                    }
+                }
+            }
+            variable filesystem-name {
+                value .*disk.*;
+                description "Regex to monitor filesystem. Only disks by default.";
+                type string;
+            }
+            rule-properties {
+                version 1;
+                contributor external;
+            }
+        }
+    }
+}

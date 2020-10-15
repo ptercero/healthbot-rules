@@ -1,0 +1,48 @@
+healthbot {
+    topic chassis.power {
+        rule check-pem-power-usage-cisco {
+            keys pem;
+            sensor chassis {
+                open-config {
+                    sensor-name /environment/oper/;
+                    frequency 60s;
+                }
+            }
+            field pem {
+                sensor chassis {
+                    where "/environment/oper/power/location/@location =~ /^[0-9]*.PM[0-9]*$/";
+                    path "/environment/oper/power/location/@location";
+                }
+                type string;
+            }
+            field power-status {
+                sensor chassis {
+                    path /environment/oper/power/location/pem_attributes/status/value;
+                }
+                type string;
+            }
+            trigger check-pem-state {
+                frequency 60s;
+                term pem_is_ok {
+                    when {
+                        matches-with "$power-status" OK;
+                    }
+                    then {
+                        status {
+                            color green;
+                            message "$pem status:  $power-status";
+                        }
+                    }
+                }
+                term pem_no_ok {
+                    then {
+                        status {
+                            color red;
+                            message "Check $pem status:  $power-status";
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
